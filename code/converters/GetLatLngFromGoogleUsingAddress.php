@@ -48,7 +48,7 @@ class GetLatLngFromGoogleUsingAddress extends Object {
 		if($q) {
 			$result = null;
 			$resultDO = DataObject::get_one("GetLatLngFromGoogleUsingAddressSearchRecord", "\"SearchPhrase\" = '".Convert::raw2sql($q)."'");
-			if($resultDO) {
+			if($resultDO && $resultDO instanceOF GetLatLngFromGoogleUsingAddressSearchRecord) {
 				if(self::$debug) {
 					debug::show("Results from GetLatLngFromGoogleUsingAddressSearchRecord");
 				}
