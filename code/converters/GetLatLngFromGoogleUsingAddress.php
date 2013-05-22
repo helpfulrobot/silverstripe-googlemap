@@ -53,7 +53,11 @@ class GetLatLngFromGoogleUsingAddress extends Object {
 					debug::show("Results from GetLatLngFromGoogleUsingAddressSearchRecord");
 				}
 				$result = unserialize($resultDO->ResultArray);
-				if(isset($result["FullAddress"]) && isset($result["Longitude"]) && isset($result["Latitude"])) {
+				if(!is_array($result)) {
+					$result->delete();
+					$result = null;
+				}
+				elseif(isset($result["FullAddress"]) && isset($result["Longitude"]) && isset($result["Latitude"])) {
 					return $result;
 				}
 				$result = null;
