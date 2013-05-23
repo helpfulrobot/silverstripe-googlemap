@@ -48,13 +48,13 @@ class GetLatLngFromGoogleUsingAddress extends Object {
 		if($q) {
 			$result = null;
 			$resultDO = DataObject::get_one("GetLatLngFromGoogleUsingAddressSearchRecord", "\"SearchPhrase\" = '".Convert::raw2sql($q)."'");
-			if($resultDO && $resultDO instanceOF GetLatLngFromGoogleUsingAddressSearchRecord) {
+			if($resultDO) {
 				if(self::$debug) {
 					debug::show("Results from GetLatLngFromGoogleUsingAddressSearchRecord");
 				}
 				$result = unserialize($resultDO->ResultArray);
 				if(!is_array($result)) {
-					$result->delete();
+					$resultDO->delete();
 					$result = null;
 				}
 				elseif(isset($result["FullAddress"]) && isset($result["Longitude"]) && isset($result["Latitude"])) {
