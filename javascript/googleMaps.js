@@ -8,7 +8,7 @@ var geocoder = null;
 var directions = null;
 var NZLongitude = '0.0001';//173.2210
 var NZLatitude = '0.0001';//-41.2943
-var NZZoom = 2;//5
+var NZZoom = 5;//5
 var GMO;
 var addedPoint = 0;
 
@@ -755,7 +755,11 @@ GMC.prototype.processXml = function(doc) {
 		// Shall we zoom to the bounds?
 		if (pointCount > 1) {
 			//map.setZoom(map.getBoundsZoomLevel(that.bounds));
-			this.zoomTo(this.bounds.getCenter().lat(), this.bounds.getCenter().lng(), map.getBoundsZoomLevel(this.bounds));
+			newZoomLevel = (map.getBoundsZoomLevel(this.bounds) - 2);
+			if(newZoomLevel < 1) {
+				newZoomLevel = 1;
+			}
+			this.zoomTo(this.bounds.getCenter().lat(), this.bounds.getCenter().lng(), newZoomLevel);
 			map.setCenter(this.bounds.getCenter());
 		}
 		else {
@@ -861,7 +865,7 @@ GMC.prototype.createSideBar = function(sideBarArray) {
 			for (var j = 0; j < sideBarArray.length; j++) {
 				sideBarElements = sideBarArray[j].split("$$$", 2);
 				i = sideBarElements[1];
-				layerName = this.gmarkers[i].layerId;				
+				layerName = this.gmarkers[i].layerId;
 				if(!strpos(this.gmarkers[i].serverId, "manuallyAdded", 0)) {
 					html += '<li class="forLayer'+layerName+' icon'+i+'"><a href="'+ this.currentPageURL + '#map" onclick="GMO.showMarkerFromList(' + i + '); return false;">' + this.gmarkers[i].markerName + '</a> <div class="infowindowDetails">'  + this.gmarkers[i].markerDesc + '</div></li>';
 				}
