@@ -77,7 +77,7 @@ class GoogleMap extends ViewableData {
 		static function setMarkerOptions($v) {self::$MarkerOptions = $v;}
 	protected static $PreloadImages = false;
 		static function setPreloadImages($v) {self::$PreloadImages = $v;}
-		
+
 	/* ICONS */
 	protected static $DefaultIconUrl = "";
 		static function setDefaultIconUrl($v) {self::$DefaultIconUrl = $v;}
@@ -279,7 +279,7 @@ class GoogleMap extends ViewableData {
 			Requirements::javascript("googlemap/javascript/loadAjaxInfoWindow.js");
 			Requirements::insertHeadTags('<style type="text/css">v\:* {behavior:url(#default#VML);}</style>', "GoogleMapCustomHeadTag");
 			if(!$this->getShowStaticMapFirst()) {
-				Requirements::javascript("http://maps.google.com/maps?file=api&amp;v=2.x&amp;&amp;sensor".$this->showFalseOrTrue(self::$uses_sensor)."&amp;key=".GoogleMapAPIKey);
+				Requirements::javascript("http://maps.googleapis.com/maps/api/js?v=3.exp&sensor=".$this->showFalseOrTrue(self::$uses_sensor));
 				Requirements::javascript("googlemap/javascript/googleMaps.js");
 				$js .= 'var scriptsLoaded = true; jQuery(document).ready( function() { initiateGoogleMap();} );';
 			}
@@ -484,7 +484,6 @@ class GoogleMap extends ViewableData {
 	private function createJavascript() {
 		$js = '
 		function loadSunnySideUpMap() {
-		 if (GBrowserIsCompatible()) {
 			GMO = new GMC("map", null,
 			 {
 		/* HELPDIVS */
@@ -553,7 +552,6 @@ class GoogleMap extends ViewableData {
 				localeForResults: "'.self::$LocaleForResults.'"
 			 }
 			);
-		 }
 		}
 		function initiateGoogleMap() {
 			if(!scriptsLoaded) {

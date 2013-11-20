@@ -8,9 +8,10 @@ var geocoder = null;
 var directions = null;
 var NZLongitude = '0.0001';//173.2210
 var NZLatitude = '0.0001';//-41.2943
-var NZZoom = 5;//5
+var NZZoom = 2;//5
 var GMO;
 var addedPoint = 0;
+var markersArray = [];
 
 function addLayer(url) {
 	GMO.downloadXml(url);
@@ -30,12 +31,14 @@ function findRoute() {
 	return true;
 }
 function savePosition() {
-	map.savePosition();
+	//map.savePosition();
+	GMO.savePosition(map);
 	GMO.updateStatus("Position saved.");
 	return true;
 }
 function goToSavedPosition() {
-	map.returnToSavedPosition();
+	//map.returnToSavedPosition();
+	GMO.returnToSavedPosition(map);
 	GMO.updateStatus("Returned to saved position.");
 	return true;
 }
@@ -43,7 +46,6 @@ function goToSavedPosition() {
 
 function GMC(mapDivName, url, opts) {
 	// store the parameters
-	window.onunload = GUnload;
 	this.opts = opts || {};
 	this.mapDivName = mapDivName;
 	this.mapIsZoomed = false;
@@ -57,6 +59,7 @@ function GMC(mapDivName, url, opts) {
 	this.lastMarker = {};
 	this.markerImageCollection = [];
 	this.imageNum = 0;
+	this.previousPosition = null;
 	if(!this.opts.defaultLatitude) {  this.opts.defaultLatitude = NZLatitude; }
 	if(!this.opts.defaultLongitude) {  this.opts.defaultLongitude = NZLongitude; }
 	if(!this.opts.defaultZoom) {  this.opts.defaultZoom = NZZoom; }
@@ -78,84 +81,128 @@ function GMC(mapDivName, url, opts) {
 	if(!map) {
 		this.setupMap(mapDivName);
 	}
-	this.zoomTo(this.opts.defaultLatitude, this.opts.defaultLongitude, this.opts.defaultZoom);
+	var latLng = new google.maps.LatLng(this.opts.defaultLatitude, this.opts.defaultLongitude, true);
+	this.zoomTo(latLng, this.opts.defaultZoom);
 	map.clearOverlays();
 	if(this.opts.mapTypeDefaultZeroToTwo) {
-		mapTypeArray = map.getMapTypes();
-		map.setMapType(mapTypeArray[this.opts.mapTypeDefaultZeroToTwo+0]);
+		var mapType = this.mapTypesArray(this.opts.mapTypeDefaultZeroToTwo-0);
+		//map.setMapTypeId();
 	}
 	if(this.defaultUrl) {
 		this.downloadXml(this.defaultUrl);
 	}
-	this.mapOriginalSize = map.getSize();
+	//this.mapOriginalSize = map.getSize();
+	this.mapOriginalSize = {width: map.getDiv().offsetWidth, height: map.getDiv().offsetHeight};
 	this.updateStatus("Map Ready");
 }
+
+
+GMC.prototype.mapTypesArray = function(i){
+	var a = new Array();
+	a[0] = google.maps.MapTypeId.HYBRID;
+	a[1] = google.maps.MapTypeId.ROADMAP;
+	a[2] = google.maps.MapTypeId.SATELLITE;
+	a[3] = google.maps.MapTypeId.TERRAIN;
+	return a[i];
+}
+
+GMC.prototype.zoomControlStyleArray = function(i){
+	var a = new Array();
+	a[1] = google.maps.ZoomControlStyle.SMALL;
+	a[2] = google.maps.ZoomControlStyle.SMALL;
+	a[3] = google.maps.ZoomControlStyle.LARGE;
+	return a[i];
+}
+
 /* map setup and map changes (e.g. zoom) */
 GMC.prototype.setupMap = function (mapDivName) {
-	map = new GMap2(document.getElementById(mapDivName));
+
+	this.opts.mapControlSizeOneToThree = this.zoomControlStyleArray(this.opts.mapControlSizeOneToThree-0);
+	var mapOptions = {
+		center: new google.maps.LatLng(this.opts.defaultLatitude, this.opts.defaultLongitude),
+		zoom: this.opts.defaultZoom,
+		mapTypeId: google.maps.MapTypeId.TERRAIN,
+
+		// Add map type control
+		mapTypeControl: this.opts.mapAddTypeControl,
+		mapTypeControlOptions: {
+				style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+				position: google.maps.ControlPosition.TOP_LEFT
+		},
+		// Add pan
+		panControl: true,
+		// Add zoom
+		zoomControl: true,
+		zoomControlOptions:{
+			style: this.opts.mapControlSizeOneToThree
+		},
+		// Add scale
+		scaleControl: true,
+		scaleControlOptions: {
+				position: google.maps.ControlPosition.BOTTOM_RIGHT
+		}
+	};
+	map = new google.maps.Map(document.getElementById(mapDivName), mapOptions);
+
 	//standard
-	new GKeyboardHandler(map);
-	map.enableContinuousZoom();
+	//new GKeyboardHandler(map);
+	//map.enableContinuousZoom();
 	//map.enableDoubleClickZoom();
 	//optional
-	map.addMapType(G_PHYSICAL_MAP);
-	if(this.opts.mapAddTypeControl) { map.addControl(new GMapTypeControl()); }
-	if(this.opts.mapScaleInfoSizeInPixels > 0) {map.addControl(new GScaleControl(this.opts.mapScaleInfoSizeInPixels)); }
-	if(this.opts.mapControlSizeOneToThree == 3) {
-		map.addControl(new GLargeMapControl()); }
-	else if(this.opts.mapControlSizeOneToThree == 2) {
-		map.addControl(new GSmallMapControl());
-	}
-	else {
-		map.addControl(new GSmallZoomControl());
-	}
+	//map.setMapTypeId();
+	//if(this.opts.mapAddTypeControl) { map.addControl(new GMapTypeControl()); }
+	//if(this.opts.mapScaleInfoSizeInPixels > 0) {map.addControl(new GScaleControl(this.opts.mapScaleInfoSizeInPixels)); }]
+	//if(this.opts.mapControlSizeOneToThree == 3) {
+		//map.addControl(new GLargeMapControl());
+	//}
+	//else if(this.opts.mapControlSizeOneToThree == 2) {
+		//map.addControl(new GSmallMapControl());
+	//}
+	//else {
+		//map.addControl(new GSmallZoomControl());
+	//}
 	//add statusDiv
 	if(this.opts.statusDivId == "statusDivOnMap" && !this.opts.noStatusAtAll) {
-		map.addControl(new this.statusDivControl);
+		//map.addControl(new this.statusDivControl);
 	}
 	if(this.opts.addDirections) {
-		directions = new GDirections(map);
-		GEvent.addListener(directions, "load",  function() {
+		directions = new google.maps.DirectionsService();
+		google.maps.event.addListener(directions, "load",  function() {
 				GMO.directionsOnLoad();
 		});
-		GEvent.addListener(directions, "error", this.directionsHandleErrors);
-		G_START_ICON.iconSize = new GSize(0, 0);
+		google.maps.event.addListener(directions, "error", this.directionsHandleErrors);
+		G_START_ICON = "";
+		G_START_ICON.iconSize = new google.maps.Size(0, 0);
 		G_START_ICON.image="";
 		G_START_ICON.shadow = "";
-		G_END_ICON.iconSize = new GSize(0, 0);
+		G_END_ICON = "";""
+		G_END_ICON.iconSize = new google.maps.Size(0, 0);
 		G_END_ICON.image="";
 		G_END_ICON.shadow = "";
 	}
-	GEvent.addListener(map, "click", function(marker, point) {
-		if(marker) {
+	google.maps.event.addListener(
+		map,
+		"click",
+		function(event) {
+			marker = null;
+			if(marker) {
 				//update marker details
+				alert(marker);
+				alert("marker");
 			}
 			else {
-				GMO.zoomTo(point.lat(), point.lng(), map.getZoom()+1);
+				var latLng = new google.maps.LatLng(event.latLng.lat(), event.latLng.lng(), true);
+				GMO.zoomTo(latLng, map.getZoom() +1);
 			}
 		}
 	);
-	GEvent.addListener(map, "singlerightclick", function(point, image, marker) {
-			if(marker) {
-				marker.hide();
-				map.closeInfoWindow();
-				GMO.updateLists();
-				if(GMO.opts.updateServerUrlDragend) {
-					//delete marker from database....
-					var lng = marker.getPoint().lng();
-					var lat = marker.getPoint().lat();
-					var id = marker.serverId;
-					jQuery.get(
-						GMO.opts.updateServerUrlDragend,
-						{ x: lng, y: lat, i: id, a: "remove" },
-						function(response){
-							GMO.updateStatus('<p>' + response + '</p>');
-						}
-					);
-				}
-			}
-			else {
-				point = map.fromContainerPixelToLatLng(point);
+	google.maps.event.addListener(
+		map,
+		"rightclick",
+		function(point, image) {
+				var latLng = new google.maps.LatLng(point.latLng.ob, point.latLng.pb, true);
+				//point = map.fromContainerPixelToLatLng(point);
+				point = new google.maps.Point(point.pixel.x, point.pixel.y);
 				if(GMO.opts.addPointsToMap) {
 					var nameString = "Longitude (" + Math.round(point.lng()*10000)/10000 + ") and Latitude (" + Math.round(point.lat()*10000)/10000 + ")";
 					var pointLngLat = point.lng() + "," + point.lat();
@@ -164,26 +211,30 @@ GMC.prototype.setupMap = function (mapDivName) {
 					GMO.processXml(xmlString);
 				}
 				else {
-					GMO.zoomTo(point.lat(), point.lng(), map.getZoom()-1);
+					GMO.zoomTo(latLng, map.getZoom()-1);
 				}
-			}
 		}
 	);
 	if(this.opts.viewFinderSize > 0) {
 
 		window.setTimeout(
 			function() {
-				GMO.viewFinderSize = GMO.opts.viewFinderSize;
-				GMO.addViewFinder(GMO.opts.viewFinderSize, GMO.opts.viewFinderSize);
+				//GMO.viewFinderSize = GMC.opts.viewFinderSize;
+				//Call commented out for now, readd later
+				//GMO.addViewFinder(GMO.opts.viewFinderSize, GMO.opts.viewFinderSize);
 			}, 2000
 		);
 	}
 }
 GMC.prototype.basicResetMap = function () {
-	map.checkResize();
+	//map.checkResize();
+	map.setCenter(this.opts.defaultLatitude, this.opts.defaultLongitude);
+	map.setZoom(this.opts.defaultZoom);
 }
+
+//to be completed later, call has been commented out for now, see line 223
 GMC.prototype.addViewFinder = function (width, height) {
-	var ovSize = new GSize(width, height);
+	var ovSize = new google.maps.Size(width, height);
 	var ovMap = new GOverviewMapControl(ovSize);
 	map.addControl(ovMap);
 	window.setTimeout(
@@ -193,24 +244,32 @@ GMC.prototype.addViewFinder = function (width, height) {
 		}, 1000
 	);
 }
-GMC.prototype.zoomTo = function (latitude, longitude, zoom) {
-	//console.debug(latitude+","+longitude+","+zoom);
-	latitude = this.checkLatitude(latitude);
-	longitude = this.checkLongitude(longitude);
-	zoom = this.checkZoom(zoom);
-	if(latitude && longitude && zoom) {
-		map.setCenter(new GLatLng(latitude, longitude, true), zoom);
+
+GMC.prototype.zoomTo = function (latitudeAndlongitude, zoom) {
+	if(zoom && latitudeAndlongitude) {
+		map.setZoom(zoom);
+		map.panTo(latitudeAndlongitude);
 	}
-	else if(latitude != 0 && longitude != 0) {
-		map.setCenter(new GLatLng(latitude, longitude, true));
+	else{
+		map.setCenter(new google.maps.LatLng(latitudeAndlongitude, true));
 	}
 }
-GMC.prototype.statusDivControl = function () { }
-if(mapFunctionIsDefined("GControl")) {
-	GMC.prototype.statusDivControl.prototype = new GControl();
+
+GMC.prototype.savePosition = function(map) {
+	GMC.previousPosition = map.getCenter();
 }
-GMC.prototype.statusDivControl.prototype.initialize = function(map) {
+
+GMC.prototype.returnToSavedPosition = function(map) {
+	if (GMC.previousPosition) {
+		map.panTo(GMC.previousPosition); // or setCenter
+	}
+}
+
+
+//to be completed, not currently called
+GMC.prototype.statusDivControl = function(map) {
 	var el = document.createElement("div");
+	var statusControl = new StatusControl(statusControlDiv, map);
 	el.setAttribute('id',"statusDivOnMap");
 	el.style.backgroundColor = "white";
 	el.style.font = "small Arial";
@@ -218,14 +277,12 @@ GMC.prototype.statusDivControl.prototype.initialize = function(map) {
 	el.style.padding = "2px";
 	el.style.zIndex = "99999";
 	el.style.marginRight = "7px";
-	/*
-	GEvent.addDomListener(el, "click", function() {
+	google.maps.event.addDomListener(el, "click", function() {
 		el.style.display = "none";
 	});
-	*/
-	var pos = new GControlPosition(G_ANCHOR_BOTTOM_LEFT, new GSize(68,19)); //73, 27
-	pos.apply(el);
+	map.controls[google.maps.ControlPosition.BOTTOM_LEFT].push(statusControlDiv);
 	map.getContainer().appendChild(el);
+
 	return el;
 }
 /* add and delete layers */
@@ -267,19 +324,22 @@ GMC.prototype.createMarker = function(point,name,desc, serverId, iconUrl) {// Cr
 	if(markerOpts.title) {
 		markerOpts.title = name;
 	}
+  markerOpts.position = point;
+  markerOpts.map = map;
 	// create the marker
-	var m = new GMarker(point, markerOpts);
-	this.updateAddressFormFields(m.getPoint().lat(), m.getPoint().lng());
+	var m = marker = new google.maps.Marker(markerOpts);
+	//TO DO: fix following line
+	//GMC.updateAddressFormFields(m.getPosition());
 	//set other marker variables
 	m.layerId = currentLayerId;
 	m.markerName = name;
-	m.markerDesc = desc;
+	m.markerDesc = desc.nodeValue;
 	m.type = 'marker';
 	m.serverId = serverId;
 	if(this.opts.updateServerUrlDragend) {
 		markerOpts.draggable = true;
 		m.draggable = true;
-		GEvent.addListener(m, "dragend", function() {
+		google.maps.event.addListener(m, "dragend", function() {
 			GMO.updateStatus('<p>updating database</p>');
 			var lng = m.getPoint().lng();
 			var lat = m.getPoint().lat();
@@ -296,11 +356,45 @@ GMC.prototype.createMarker = function(point,name,desc, serverId, iconUrl) {// Cr
 		markerOpts.draggable = false;
 		m.draggable = false;
 	}
-	GEvent.addListener(m, "click", function() {
+	var contentString = GMO.retrieveInfoWindowContent(m);
+	var infowindow = new google.maps.InfoWindow(
+		{
+			content: contentString
+		}
+	);
+	google.maps.event.addListener(
+		m,
+		"click",
+		function() {
+			infowindow.open(map, m);
 			GMO.lastMarker = m;
-			GMO.openMarkerInfoTabs(m);
-	});
-	map.addOverlay(m);
+		}
+	);
+	google.maps.event.addListener(
+		m,
+		"rightclick",
+		function() {
+				m.setMap(null);
+				//infowindow.close();
+				GMO.updateLists();
+				if(GMO.opts.updateServerUrlDragend) {
+					//delete marker from database....
+					var lng = marker.getPoint().lng();
+					var lat = marker.getPoint().lat();
+					var id = marker.serverId;
+					jQuery.get(
+						GMO.opts.updateServerUrlDragend,
+						{ x: lng, y: lat, i: id, a: "remove" },
+						function(response){
+							GMO.updateStatus('<p>' + response + '</p>');
+						}
+					);
+				}
+
+		}
+	);
+	marker.setMap(map);
+	this.gmarkers.push(m);
 	this.gmarkers.push(m);
 	return m;
 }
@@ -319,7 +413,7 @@ GMC.prototype.createPolyline = function(points,color,width,opacity,name,desc) {
 	p.markerName = name;
 	p.markerDesc = desc;
 	p.type = 'polyline';
-	GEvent.addListener(p, "click", function() {
+	google.maps.event.addListener(p, "click", function() {
 		GMO.lastMarker = p;
 		GMO.openPolyInfoTabs(p, false);
 	});
@@ -342,7 +436,7 @@ GMC.prototype.createPolygon = function(points,color,width,opacity,fillcolor,fill
 	p.markerName = name;
 	p.markerDesc = desc;
 	p.type = 'polygon';
-	GEvent.addListener(p, "click", function() {
+	google.maps.event.addListener(p, "click", function() {
 			GMO.lastMarker = p;
 			GMO.openPolyInfoTabs(p, pbounds);
 	});
@@ -350,28 +444,29 @@ GMC.prototype.createPolygon = function(points,color,width,opacity,fillcolor,fill
 	this.gmarkers.push(p);
 	return p;
 }
-GMC.prototype.openMarkerInfoTabs = function(m) {
+
+GMC.prototype.retrieveInfoWindowContent = function(m) {
 	var hiddenMarkerArray = GMO.checkForHiddenMarkers(m);
 	var name = m.markerName;
 	var desc = m.markerDesc;
-	var point = m.getPoint();
+	var point = m.getPosition();
 	var options = this.opts.infoWindowOptions || {};
 	//add delete category
 	var infoTabExtraLinksArray = new Array();
 	var obscuringLinks = '';
 	var pointCount = this.layerInfo[m.layerId].pointCount;
 	if(pointCount > 1) {
-		//infoTabExtraLinksArray.push(', <a href="javascript:void(0)" onclick="GEvent.trigger(GMO.lastMarker,\'hideGroup\');">Hide Group ('+ pointCount +' points)</a>');
-		GEvent.addListener(m, "hideGroup", function() {
+		//infoTabExtraLinksArray.push(', <a href="javascript:void(0)" onclick="google.maps.event.trigger(GMO.lastMarker,\'hideGroup\');">Hide Group ('+ pointCount +' points)</a>');
+		google.maps.event.addListener(m, "hideGroup", function() {
 				GMO.changeLayerVisibility(m.layerId);
-				map.closeInfoWindow();
+				infowindow.close();
 		});
 	}
 	if(this.opts.addAntipodean) {
-		infoTabExtraLinksArray.push('<a href="javascript:void(0)" onclick="GEvent.trigger(GMO.lastMarker,\'clickAntipodean\');">drill a hole</a>');
-		GEvent.addListener(m, "clickAntipodean", function() {
+		infoTabExtraLinksArray.push('<a href="javascript:void(0)" onclick="google.maps.event.trigger(GMO.lastMarker,\'clickAntipodean\');">drill a hole</a>');
+		google.maps.event.addListener(m, "clickAntipodean", function() {
 			map.setZoom(6);
-			var point = GMO.antipodeanPointer(m.getPoint().lat(), m.getPoint().lng());
+			var point = GMO.antipodeanPointer(m.getPosition());
 			var longitude = GMO.checkLongitude(point.lng());
 			var latitude = GMO.checkLatitude(point.lat());
 			var nameString = "Antipodean of " + m.markerName;
@@ -384,7 +479,8 @@ GMC.prototype.openMarkerInfoTabs = function(m) {
 	if(m.draggable) {
 		infoTabExtraLinksArray.push('<b>marker can be dragged to new location once this info window has been closed</b>');
 	}
-	if(hiddenMarkerArray.length) {
+	/**** @TODO FIX!!! **/
+	if(hiddenMarkerArray.length && 1 == 2) {
 		obscuringLinks += ' <p><span class="partialObscuring">This marker (partially) obscures the following point(s): ';
 		for(var i = 0; i < hiddenMarkerArray.length; i++) {
 			var markerId = hiddenMarkerArray[i];
@@ -401,89 +497,99 @@ GMC.prototype.openMarkerInfoTabs = function(m) {
 	//basic html
 	var html = '<div id="infoWindowTab1" class="infoWindowTab">' + obscuringLinks + '<h1>'+name+'</h1><div>'+desc+'</div>';
 	if(this.opts.addZoomInButton) {
-		infoTabExtraLinksArray.push('<a href="javascript:void(0)" onclick="GEvent.trigger(GMO.lastMarker,\'clickZoomIn\')">'+this.opts.addZoomInButton+'</a>');
+		infoTabExtraLinksArray.push('<a href="javascript:void(0)" onclick="google.maps.event.trigger(GMO.lastMarker,\'clickZoomIn\')">ZOOM IN</a>');
 	}
 	if(this.opts.addCloseUpButton) {
-		infoTabExtraLinksArray.push('<a href="javascript:void(0)" onclick="GEvent.trigger(GMO.lastMarker,\'clickCloseUp\')">'+this.opts.addCloseUpButton+'</a>');
+		infoTabExtraLinksArray.push('<a href="javascript:void(0)" onclick="google.maps.event.trigger(GMO.lastMarker,\'clickCloseUp\')">'+this.opts.addCloseUpButton+'</a>');
 	}
 	if(this.opts.addDeleteMarkerButton) {
-		infoTabExtraLinksArray.push('<a href="javascript:void(0)" onclick="GEvent.trigger(GMO.lastMarker,\'clickRemoveMe\')">'+this.opts.addDeleteMarkerButton+'</a>');
+		infoTabExtraLinksArray.push('<a href="javascript:void(0)" onclick="google.maps.event.trigger(GMO.lastMarker,\'clickRemoveMe\')">'+this.opts.addDeleteMarkerButton+'</a>');
 	}
 	if(this.opts.addCloseWindowButton) {
-		infoTabExtraLinksArray.push('<a href="javascript:void(0)" onclick="map.closeInfoWindow();">'+this.opts.addCloseWindowButton+'</a>');
+		infoTabExtraLinksArray.push('<a href="javascript:void(0)" onclick="infowindow.close();">'+this.opts.addCloseWindowButton+'</a>');
 	}
 	if(infoTabExtraLinksArray.length) {
 		html += '<p class="infoTabExtraLinks">'+infoTabExtraLinksArray.join(", ")+'.</p>';
 	}
-	GEvent.addListener(m, "clickZoomIn", function() {
-		map.getCurrentMapType().getMaxZoomAtLatLng(m.getLatLng(), function(response) {
-			if (response && response['status'] == G_GEO_SUCCESS) {
-				map.setCenter(m.getLatLng(), response['zoom']);
+	google.maps.event.addListener(m, "clickZoomIn", function() {
+		var maxZoomService = new google.maps.MaxZoomService();
+		maxZoomService.getMaxZoomAtLatLng(m.position, function(response) {
+			if (response.status != google.maps.MaxZoomStatus.OK) {
+				alert('Error in MaxZoomService');
+				return;
+			}
+			else {
+				map.setZoom(response.zoom);
+				map.setCenter(m.position);
 			}
 		});
 	});
-	GEvent.addListener(m, "clickCloseUp", function() {
+	google.maps.event.addListener(m, "clickCloseUp", function() {
 		m.showMapBlowup();//zoom into marker
 	});
-	GEvent.addListener(m, "clickRemoveMe", function() {
-		GEvent.trigger(marker, "singlerightclick");
+	google.maps.event.addListener(m, "clickRemoveMe", function() {
+		m.setMap(null);
+		//google.maps.event.addlistener(marker, "rightclick");
 	});
-	var tabsHtml = [new GInfoWindowTab("info", html)];
+	//var tabsHtml = [new GInfoWindowTab("info", html)];
 	//directions and address finder
 	if(this.opts.addDirections) {
 		var lonLatString = point.toUrlValue();
 		var findDirections = '';
 		if(this.opts.addDirections) {
 			findDirections = ''
-				+ '<p class="infoTabFromOption"><b>From:</b></p><p id="fromHereLink"><a href="javascript:void(0)" onclick="GEvent.trigger(GMO.lastMarker,\'clickFromHere\')">select this point</a>' + this.currentFromLocation() + '</p>'
-				+ '<p class="infoTabToOption"><b>To:</b></p><p id="toHereLink"><a href="javascript:void(0)" onclick="GEvent.trigger(GMO.lastMarker,\'clickToHere\')">select this point</a>' + this.currentToLocation() + '</p>'
+				+ '<p class="infoTabFromOption"><b>From:</b></p><p id="fromHereLink"><a href="javascript:void(0)" onclick="google.maps.event.trigger(GMO.lastMarker,\'clickFromHere\')">select this point</a>' + this.currentFromLocation() + '</p>'
+				+ '<p class="infoTabToOption"><b>To:</b></p><p id="toHereLink"><a href="javascript:void(0)" onclick="google.maps.event.trigger(GMO.lastMarker,\'clickToHere\')">select this point</a>' + this.currentToLocation() + '</p>'
 				+ '<p class="infoTabAlternative">';
 			if(this.routeShown) {
 				findDirections += ''
-					+ '<b>Do next:</b></p><p><a href="javascript:GEvent.trigger(GMO.lastMarker,\'clickClearRoute\')" id="clearRouteLink">Clear Last Route</a> ';
+					+ '<b>Do next:</b></p><p><a href="javascript:google.maps.event.trigger(GMO.lastMarker,\'clickClearRoute\')" id="clearRouteLink">Clear Last Route</a> ';
 			}
 			else if((this.floatFrom || this.floatTo) || (this.to || this.from)) {
 				findDirections += ''
-					+ '<b>Do next:</b></p><p><a href="javascript:void(0)" class="submitButton" onclick="GEvent.trigger(GMO.lastMarker,\'clickFindRoute\')" id="calculateLinkRoute">Calculate Route</a>';
+					+ '<b>Do next:</b></p><p><a href="javascript:void(0)" class="submitButton" onclick="google.maps.event.trigger(GMO.lastMarker,\'clickFindRoute\')" id="calculateLinkRoute">Calculate Route</a>';
 			}
 			else if(this.layerInfo[m.layerId].pointCount > 1 && this.layerInfo[m.layerId].pointCount < 20) {
 				findDirections += ''
-					+ '<br /><br /><b>Alternatively:</b></p><p><a href="javascript:void(0)" class="submitButton" onclick="GEvent.trigger(GMO.lastMarker,\'joinTheDots\')" id="calculateLinkRoute">Create Route Using Current Points</a>';
+					+ '<br /><br /><b>Alternatively:</b></p><p><a href="javascript:void(0)" class="submitButton" onclick="google.maps.event.trigger(GMO.lastMarker,\'joinTheDots\')" id="calculateLinkRoute">Create Route Using Current Points</a>';
 			}
 			findDirections += ''
 				+ '</p>'
 			//join the dots
-			GEvent.addListener(m, "joinTheDots", function() {
+			google.maps.event.addListener(m, "joinTheDots", function() {
 				GMO.createRouteFromLayer(m.layerId);
 				map.closeInfoWindow();
 			});
 			//current start point
-			GEvent.addListener(m, "clickFromHere", function() {
+			google.maps.event.addListener(m, "clickFromHere", function() {
 				GMO.from = name;
 				GMO.floatFrom = lonLatString;
 				document.getElementById("fromHereLink").innerHTML = "This point";
 			});
 			//current end point
-			GEvent.addListener(m, "clickToHere", function() {
+			google.maps.event.addListener(m, "clickToHere", function() {
 				document.getElementById("toHereLink").innerHTML = "This point";
 				GMO.to = name;
 				GMO.floatTo = lonLatString;
 			});
 			//add route
-			GEvent.addListener(m, "clickFindRoute", function() {
+			google.maps.event.addListener(m, "clickFindRoute", function() {
 				GMO.showRoute();
 				map.closeInfoWindow();
 			});
 			//clearRoute
-			GEvent.addListener(m, "clickClearRoute", function() {
+			google.maps.event.addListener(m, "clickClearRoute", function() {
 				GMO.clearRouteAll();
 			});
 		}
-		tabsHtml.push(new GInfoWindowTab("directions", '<div id="infoWindowTab2" class="infoWindowTab">' + findDirections + '</div>' ));
+		html = html + '<div id="infoWindowTab2" class="infoWindowTab">' + findDirections + '</div>';
+		//tabsHtml.push(new GInfoWindowTab("directions", '<div id="infoWindowTab2" class="infoWindowTab">' + findDirections + '</div>' ));
 	}
+
 	if(this.opts.addCurrentAddressFinder) {
-		tabsHtml.push(new GInfoWindowTab("address", '<div id="infoWindowTab3" class="infoWindowTab"><a href="javascript:void(0)" onclick="GEvent.trigger(GMO.lastMarker,\'findAddressFromLngLat\')">find address</a></div>'));
-		GEvent.addListener(m, "findAddressFromLngLat",
+		html = html + '<div id="infoWindowTab3" class="infoWindowTab"><a href="javascript:void(0)" onclick="google.maps.event.trigger(GMO.lastMarker,\'findAddressFromLngLat\')">find address</a></div>';
+		//tabsHtml.push(new GInfoWindowTab("address", '<div id="infoWindowTab3" class="infoWindowTab"><a href="javascript:void(0)" onclick="google.maps.event.trigger(GMO.lastMarker,\'findAddressFromLngLat\')">find address</a></div>'));
+		google.maps.event.addListener(m, "findAddressFromLngLat",
 			function() {
 				geocoder = new GClientGeocoder();
 				geocoder.getLocations(
@@ -506,9 +612,8 @@ GMC.prototype.openMarkerInfoTabs = function(m) {
 			}
 		);
 	}
-	m.openInfoWindowTabsHtml(tabsHtml,options);
+	return html;
 }
-
 GMC.prototype.openPolyInfoTabs = function( m, pbounds) {
 	//if pbounds then it must be a polygon rather than a polyline
 	var name = m.markerName;
@@ -518,8 +623,8 @@ GMC.prototype.openPolyInfoTabs = function( m, pbounds) {
 	var hideGroupLink = '';
 	var pointCount = this.layerInfo[m.layerId].pointCount;
 	if(pointCount > 1) {
-		//hideGroupLink += ', <a href="javascript:void(0)" onclick="GEvent.trigger(GMO.lastMarker,\'hideGroup\');">Hide Group ('+ pointCount +' points)</a>';
-		GEvent.addListener(m, "hideGroup", function() {
+		//hideGroupLink += ', <a href="javascript:void(0)" onclick="google.maps.event.trigger(GMO.lastMarker,\'hideGroup\');">Hide Group ('+ pointCount +' points)</a>';
+		google.maps.event.addListener(m, "hideGroup", function() {
 				GMO.changeLayerVisibility(m.layerId);
 				map.closeInfoWindow();
 		});
@@ -528,10 +633,10 @@ GMC.prototype.openPolyInfoTabs = function( m, pbounds) {
 	var html = '<div id="infoWindowTab1" class="infoWindowTab"><h1>'+name+'</h1><div>'+desc+'</div>'
 		+ '<p class="infoTabBasicLinks">'
 		+ '<a href="javascript:void(0)" onclick="map.closeInfoWindow();">Close Window</a>'
-		+ ', <a href="javascript:void(0)" onclick="GEvent.trigger(GMO.lastMarker,\'clickHideMe\')">Remove Item</a>'
+		+ ', <a href="javascript:void(0)" onclick="google.maps.event.trigger(GMO.lastMarker,\'clickHideMe\')">Remove Item</a>'
 		+ hideGroupLink
 		+ '.</p>'
-	GEvent.addListener(m, "clickHideMe", function() {
+	google.maps.event.addListener(m, "clickHideMe", function() {
 		map.closeInfoWindow();
 		m.hide();
 		var currentLayerId = m.layerId
@@ -571,19 +676,13 @@ GMC.prototype.preLoadMarkerImages = function(desc) {
 }
 GMC.prototype.createStandardIcon = function(iconUrl) {
 	// create icon
-	var icon = new GIcon(G_DEFAULT_ICON);
-	this.updateStatus(iconUrl);
-	icon.image = iconUrl;
-	icon.iconSize = new GSize(this.opts.iconWidth,this.opts.iconHeight);
-	icon.shadowSize = new GSize(0,0);
-	icon.shadow = '';
-	icon.dragCrossAnchor = new GPoint(this.opts.iconWidth/2,this.opts.iconWidth/2);
-	icon.dragCrossSize = new GSize(this.opts.iconWidth,this.opts.iconWidth);
-	icon.iconAnchor = new GPoint(Math.round(this.opts.iconWidth/2),this.opts.iconHeight);
-	icon.infoWindowAnchor = new GPoint(Math.round(this.opts.iconWidth/2),Math.round(this.opts.iconHeight/2));
-	if(this.opts.iconImageMap && this.opts.iconImageMap.length) {
-		icon.imageMap = this.opts.iconImageMap;
-	}
+	var icon = {
+		//causes error, fix later
+		//this.updateStatus(iconUrl),
+		url : iconUrl,
+		size: new google.maps.Size(this.opts.iconWidth,this.opts.iconHeight),
+		anchor: new google.maps.Point(Math.round(this.opts.iconWidth/2),this.opts.iconHeight)
+	};
 	return icon;
 }
 /* process XML sheets */
@@ -640,15 +739,24 @@ GMC.prototype.downloadXml = function(url) {
 	else {
 		this.updateStatus("Downloading data from server . . . ");
 		this.latestUrl = url;
-		GDownloadUrl(url, function(doc) { GMO.processXml(doc);} );
+		//GDownloadUrl(url, function(doc) { GMO.processXml(doc);} );
+		downloadUrl(
+			url,
+			function(doc) {
+				GMO.processXml(doc);
+			}
+		);
+
 	}
 }
+
+
 GMC.prototype.processXml = function(doc) {
-	var xmlDoc = GXml.parse(doc);
-	this.bounds = new GLatLngBounds();
-	var pointCount = GXml.value(xmlDoc.getElementsByTagName("pointcount")[0]);
-	this.tooManyPointsWarning(pointCount);
+	this.bounds = new google.maps.LatLngBounds();
+	var pointCount = parseInt(doc.getElementsByTagName("pointcount")[0].childNodes[0].nodeValue);
+	this.tooManyPointsWarning(pointCount + 1);
 	if(pointCount > 0) {
+
 		var currentLayerId = this.layerInfo.length;
 		var groupInfo = {};
 		iconUrlCollection = [];
@@ -657,11 +765,11 @@ GMC.prototype.processXml = function(doc) {
 		this.latestUrl = '';
 		groupInfo.pointCount = pointCount;
 		//parse basics:
-		groupInfo.title =  GXml.value(xmlDoc.getElementsByTagName("title")[0]);
-		groupInfo.info = GXml.value(xmlDoc.getElementsByTagName("info")[0]);
-		groupInfo.a = GXml.value(xmlDoc.getElementsByTagName("latitude")[0]);
-		groupInfo.o = GXml.value(xmlDoc.getElementsByTagName("longitude")[0]);
-		groupInfo.z = GXml.value(xmlDoc.getElementsByTagName("zoom")[0]);
+		groupInfo.title =  doc.getElementsByTagName("title")[0].childNodes[0].nodeValue;
+		groupInfo.info = doc.getElementsByTagName("info")[0].childNodes[0].nodeValue;
+		groupInfo.a = doc.getElementsByTagName("latitude")[0].childNodes[0].nodeValue;
+		groupInfo.o = doc.getElementsByTagName("longitude")[0].childNodes[0].nodeValue;
+		groupInfo.z = doc.getElementsByTagName("zoom")[0].childNodes[0].nodeValue;
 		//add icon here? createStandardIcon
 		var currentIconId = currentLayerId + 1;
 		var layerIconCount = 0;
@@ -675,13 +783,16 @@ GMC.prototype.processXml = function(doc) {
 		//groupInfo.iconUrl = iconUrlCollection;
 		this.layerInfo.push (groupInfo);
 		// Read through the Placemarks
-		var placemarks = xmlDoc.documentElement.getElementsByTagName("Placemark");
+		var placemarks = doc.documentElement.getElementsByTagName("Placemark");
 		for (var i = 0; i < placemarks.length; i++) {
-			var serverId = GXml.value(placemarks[i].getElementsByTagName("id")[0]);
-			var name = GXml.value(placemarks[i].getElementsByTagName("name")[0]);
-			var desc = GXml.value(placemarks[i].getElementsByTagName("description")[0]);
-			var styleLocationId = GXml.value(placemarks[i].getElementsByTagName("styleUrl")[0]);
-			styleLocationId = styleLocationId.substring(1, styleLocationId.length);
+			var serverId = placemarks[i].getElementsByTagName("id")[0].childNodes[0];
+			var name = placemarks[i].getElementsByTagName("name")[0].childNodes[0].nodeValue;
+			var desc = placemarks[i].getElementsByTagName("description")[0].childNodes[0];
+			var styleLocationId = null
+			if (placemarks[i].getElementsByTagName("styleUrl").length > 0) {
+				styleLocationId = placemarks[i].getElementsByTagName("styleUrl")[0];
+				styleLocationId = styleLocationId.substring(1, styleLocationId.length);
+			}
 			var newIconURL = iconUrl;
 			if(styleLocationId) {
 				//<Style id="randomColorIcon"><IconStyle><Icon>URL here
@@ -690,7 +801,7 @@ GMC.prototype.processXml = function(doc) {
 					if(IconStyleDoc[j].getAttribute("id")) {
 						if(IconStyleDoc[j].getAttribute("id") == styleLocationId){
 							layerIconCount++;
-							newIconURL = GXml.value(IconStyleDoc[j].getElementsByTagName("Icon")[0]);
+							newIconURL = IconStyleDoc[j].getElementsByTagName("Icon")[0].childNodes[0];
 						}
 					}
 				}
@@ -699,7 +810,7 @@ GMC.prototype.processXml = function(doc) {
 			if (this.opts.preloadImages) {
 				this.preLoadMarkerImages(desc);
 			}
-			var coords = GXml.value(placemarks[i].getElementsByTagName("coordinates")[0]);
+			var coords = placemarks[i].getElementsByTagName("coordinates")[0].childNodes[0].nodeValue;
 			coords=coords.replace(/\s+/g," "); // tidy the whitespace
 			coords=coords.replace(/^ /,"");    // remove possible leading whitespace
 			coords=coords.replace(/, /,",");   // tidy the commas
@@ -708,10 +819,10 @@ GMC.prototype.processXml = function(doc) {
 			if (path.length > 1) {
 				// Build the list of points
 				var points = [];
-				var pbounds = new GLatLngBounds();
+				var pbounds = new google.maps.LatLngBounds();
 				for (var p=0; p<path.length-1; p++) {
 					var bits = path[p].split(",");
-					var point = new GLatLng(parseFloat(bits[1]),parseFloat(bits[0]));
+					var point = new google.maps.LatLng(parseFloat(bits[1]),parseFloat(bits[0]));
 					points.push(point);
 					this.bounds.extend(point);
 					pbounds.extend(point);
@@ -739,7 +850,7 @@ GMC.prototype.processXml = function(doc) {
 			else {
 			//it must be a marker
 				var bits = path[0].split(",");
-				var point = new GLatLng(parseFloat(bits[1]),parseFloat(bits[0]));
+				var point = new google.maps.LatLng(parseFloat(bits[1]),parseFloat(bits[0]));
 				this.bounds.extend(point);
 			// create marker
 				this.updateStatus("Processing new point " + i + " of " + pointCount + " . . .");
@@ -754,12 +865,8 @@ GMC.prototype.processXml = function(doc) {
 		this.layerInfo[currentLayerId].iconUrl = iconUrlCollection;
 		// Shall we zoom to the bounds?
 		if (pointCount > 1) {
-			//map.setZoom(map.getBoundsZoomLevel(that.bounds));
-			newZoomLevel = (map.getBoundsZoomLevel(this.bounds) - 2);
-			if(newZoomLevel < 1) {
-				newZoomLevel = 1;
-			}
-			this.zoomTo(this.bounds.getCenter().lat(), this.bounds.getCenter().lng(), newZoomLevel);
+			var latLng = new google.maps.LatLng(this.bounds.getCenter().lat(),  this.bounds.getCenter().lng(), true);
+			this.zoomTo(latLng, map.fitBounds(this.bounds));
 			map.setCenter(this.bounds.getCenter());
 		}
 		else {
@@ -767,8 +874,10 @@ GMC.prototype.processXml = function(doc) {
 		}
 		this.updateLists();
 		//this.zoomTo(groupInfo.a, groupInfo.o, groupInfo.z);
-		if(!map.getInfoWindow().isHidden()) {
-			map.closeInfoWindow();
+		//if(!map.getInfoWindow().isHidden()) {
+		if(!marker.getVisible) {
+			//map.closeInfoWindow();
+			marker.infowindow.close();
 		}
 		if(pointCount > 1) {
 			this.updateStatus(pointCount + " locations added.");
@@ -776,8 +885,9 @@ GMC.prototype.processXml = function(doc) {
 		else {
 			window.setTimeout(
 				function () {
-					GEvent.trigger(GMO.gmarkers[GMO.gmarkers.length -1], "click");
-					map.panDirection(0, 1);
+					google.maps.event.trigger(GMO.gmarkers[GMO.gmarkers.length -1], "click");
+					//map.panDirection(0, 1);
+					map.panBy(0, 1);
 				}
 				, 300
 			);
@@ -785,7 +895,7 @@ GMC.prototype.processXml = function(doc) {
 		}
 	}
 	else {
-		var title =  GXml.value(xmlDoc.getElementsByTagName("title")[0]);
+		var title =  doc.getElementsByTagName("title")[0];
 		if(this.opts.titleId) {
 			if(el = document.getElementById(this.opts.titleId)) {
 				el.innerHTML = title;
@@ -816,7 +926,7 @@ GMC.prototype.updateLists = function() {
 			this.layerInfo[i].show = 0;
 		}
 		for (var i = 0; i < this.gmarkers.length; i++) {
-			if (!this.gmarkers[i].isHidden()) {
+			if (!this.gmarkers[i].getVisible()) {
 				this.layerInfo[this.gmarkers[i].layerId].show = 1;
 				if(!a.inArray(this.gmarkers[i].markerName)) {
 					sideBarArray.push(this.gmarkers[i].markerName + "$$$" + i);
@@ -1063,15 +1173,10 @@ GMC.prototype.addAddressToMap = function (response) {
 		return true;
 	}
 }
-GMC.prototype.updateAddressFormFields = function(latitude, longitude) {
+GMC.prototype.updateAddressFormFields = function(latLng) {
 	if(GMO.opts.latFormFieldId) {
 		if(el = document.getElementById(GMO.opts.latFormFieldId)) {
-			document.getElementById(GMO.opts.latFormFieldId).value = latitude;
-		}
-	}
-	if(GMO.opts.lngFormFieldId) {
-		if(document.getElementById(GMO.opts.lngFormFieldId)) {
-			document.getElementById(GMO.opts.lngFormFieldId).value = longitude;
+			document.getElementById(GMO.opts.latLngFormFieldId).value = latLng;
 		}
 	}
 }
@@ -1169,7 +1274,7 @@ GMC.prototype.directionsOnLoad = function (){
 		html += ''
 			+ '<tr>'
 			+' <th colspan="2">'
-			+'  <a href="javascript:void(0);" onclick="map.showMapBlowup(new GLatLng('+point.toUrlValue(6)+')); return false;">'
+			+'  <a href="javascript:void(0);" onclick="map.showMapBlowup(new google.maps.LatLng('+point.toUrlValue(6)+')); return false;">'
 			+'   <img src="http://www.google.com/intl/en_ALL/mapfiles/icon-dd-' +type+ '-trans.png" alt="marker">'
 			+'  </a>'
 			+   pointName + " (" + address + ")"
@@ -1188,7 +1293,7 @@ GMC.prototype.directionsOnLoad = function (){
 		html += ''
 			+ '<tr>'
 			+' <td>'
-			+'  <a href="javascript:void(0);" onclick="map.showMapBlowup(new GLatLng('+point.toUrlValue(6)+'));">'+num+'.</a> '
+			+'  <a href="javascript:void(0);" onclick="map.showMapBlowup(new google.maps.LatLng('+point.toUrlValue(6)+'));">'+num+'.</a> '
 			+   description
 			+' </td>'
 			+' <td class="dist">'
@@ -1346,7 +1451,7 @@ GMC.prototype.getlastMarkerLonLat = function() {
 }
 GMC.prototype.showMarkerFromList = function (selectedId) {
 	if(selectedId > -1){
-		GEvent.trigger(this.gmarkers[selectedId],'click');
+		google.maps.event.trigger(this.gmarkers[selectedId],'click');
 	}
 }
 GMC.prototype.antipodeanPointer = function (lat, lng) {
@@ -1359,7 +1464,7 @@ GMC.prototype.antipodeanPointer = function (lat, lng) {
 	}
 	lat = lat * -1;
 	this.updateStatus("Hole Drilled!");
-	point = new GLatLng(lat, lng, true)
+	point = new google.maps.LatLng(lat, lng, true)
 	return point;
 }
 GMC.prototype.checkLatitude = function(latitude) {
@@ -1385,9 +1490,9 @@ GMC.prototype.checkForHiddenMarkers = function(marker) {
 		var otherMarkerBounds;
 		for (var i = 0; i < this.gmarkers.length; i++) {
 			if (this.gmarkers[i].markerName != marker.markerName) {
-				if (!this.gmarkers[i].isHidden()) {
+				if (!this.gmarkers[i].view) {
 					if(this.gmarkers[i].type == "marker") {
-						if (this.gmarkers[i].getPoint().lat() >= marker.getPoint().lat()) {
+						if (this.gmarkers[i].getPosition().lat() >= marker.getPosition().lat()) {
 							otherMarkerBounds = this.obscuringPixelDiv(this.gmarkers[i]);
 							if(this.GBoundIntersection(currentMarkerBounds, otherMarkerBounds)) {
 								a.push (i);
@@ -1411,13 +1516,14 @@ GMC.prototype.GBoundIntersection = function (GA, GB) {
 GMC.prototype.obscuringPixelDiv = function (marker) {
 	//get pixel point from LatLng
 	var icon = marker.getIcon();
-	var PointpixelCoordinates = map.fromLatLngToDivPixel(marker.getPoint());
+	//var PointpixelCoordinates = map.fromLatLngToDivPixel(marker.getPoint());
+	var PointpixelCoordinates = marker.position;
 	//get NW offset in pixels from LatLng Px-Ax
-	var NWx = PointpixelCoordinates.x - icon.iconAnchor.x;
-	var NWy = PointpixelCoordinates.y - icon.iconAnchor.y;
+	var NWx = PointpixelCoordinates.lat() - icon.anchor.x;
+	var NWy = PointpixelCoordinates.lng() - icon.anchor.y;
 	//get SE offset in pixels from LatLng
-	var SEx = PointpixelCoordinates.x + (icon.iconSize.width - icon.iconAnchor.x);
-	var SEy = PointpixelCoordinates.y;
+	var SEx = PointpixelCoordinates.lat() + (icon.size.width - icon.anchor.x);
+	var SEy = PointpixelCoordinates.lng();
 	return a = new Array(NWx, NWy, SEx, SEy);
 }
 /* update server */
@@ -1541,4 +1647,106 @@ function strpos( haystack, needle, offset){
 	// *     returns 1: 14
 	var i = haystack.indexOf( needle, offset ); // returns -1
 	return i >= 0 ? i : false;
+}
+
+
+
+
+
+
+//clear overlays function to replace deprecated function from google maps api v2
+google.maps.Map.prototype.clearOverlays = function() {
+	for (var i = 0; i < markersArray.length; i++ ) {
+		markersArray[i].setMap(null);
+	}
+	markersArray = [];
+}
+
+
+
+
+/**
+* Returns an XMLHttp instance to use for asynchronous
+* downloading. This method will never throw an exception, but will
+* return NULL if the browser does not support XmlHttp for any reason.
+* @return {XMLHttpRequest|Null}
+*/
+function createXmlHttpRequest() {
+ try {
+   if (typeof ActiveXObject != 'undefined') {
+     return new ActiveXObject('Microsoft.XMLHTTP');
+   } else if (window["XMLHttpRequest"]) {
+     return new XMLHttpRequest();
+   }
+ } catch (e) {
+   changeStatus(e);
+ }
+ return null;
+};
+
+/**
+* This functions wraps XMLHttpRequest open/send function.
+* It lets you specify a URL and will call the callback if
+* it gets a status code of 200.
+* @param {String} url The URL to retrieve
+* @param {Function} callback The function to call once retrieved.
+*/
+function downloadUrl(url, callback) {
+ var status = -1;
+ var request = createXmlHttpRequest();
+ if (!request) {
+   return false;
+ }
+
+ request.onreadystatechange = function() {
+   if (request.readyState == 4) {
+     try {
+       status = request.status;
+     } catch (e) {
+       // Usually indicates request timed out in FF.
+     }
+     if (status == 200) {
+       callback(xmlParse(request.response), request.status);
+       request.onreadystatechange = function() {};
+     }
+   }
+ }
+ request.open('GET', url, true);
+ try {
+   request.send(null);
+ } catch (e) {
+   changeStatus(e);
+ }
+};
+
+/**
+ * Parses the given XML string and returns the parsed document in a
+ * DOM data structure. This function will return an empty DOM node if
+ * XML parsing is not supported in this browser.
+ * @param {string} str XML string.
+ * @return {Element|Document} DOM.
+ */
+function xmlParse(str) {
+  if (typeof ActiveXObject != 'undefined' && typeof GetObject != 'undefined') {
+    var doc = new ActiveXObject('Microsoft.XMLDOM');
+    doc.loadXML(str);
+    return doc;
+  }
+
+  if (typeof DOMParser != 'undefined') {
+    return (new DOMParser()).parseFromString(str, 'text/xml');
+  }
+
+  return createElement('div', null);
+}
+
+function xinspect(o,i){
+    if(typeof i=='undefined')i='';
+    if(i.length>50)return '[MAX ITERATIONS]';
+    var r=[];
+    for(var p in o){
+        var t=typeof o[p];
+        r.push(i+'"'+p+'" ('+t+') => '+(t=='object' ? 'object:'+xinspect(o[p],i+'  ') : o[p]+''));
+    }
+    return r.join(i+'\n');
 }
