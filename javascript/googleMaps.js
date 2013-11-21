@@ -976,7 +976,9 @@ GMC.prototype.createSideBar = function(sideBarArray) {
 				sideBarElements = sideBarArray[j].split("$$$", 2);
 				i = sideBarElements[1];
 				layerName = this.gmarkers[i].layerId;
-				if(!strpos(this.gmarkers[i].serverId, "manuallyAdded", 0)) {
+				var serverID = String(this.gmarkers[i].serverId);
+				var isManuallyAdded = serverID.indexOf( "manuallyAdded", 0 ); // returns -1
+				if(isManuallyAdded == -1) {
 					html += '<li class="forLayer'+layerName+' icon'+i+'"><a href="'+ this.currentPageURL + '#map" onclick="GMO.showMarkerFromList(' + i + '); return false;">' + this.gmarkers[i].markerName + '</a> <div class="infowindowDetails">'  + this.gmarkers[i].markerDesc + '</div></li>';
 				}
 				else {
@@ -1639,15 +1641,6 @@ function mapFunctionIsDefined(variable) {
 	return (typeof(window[variable]) == "undefined")?  false: true;
 }
 
-
-function strpos( haystack, needle, offset){
-	// http://kevin.vanzonneveld.net
-	// +   original by: Kevin van Zonneveld (http://kevin.vanzonneveld.net)
-	// *     example 1: strpos('Kevin van Zonneveld', 'e', 5);
-	// *     returns 1: 14
-	var i = haystack.indexOf( needle, offset ); // returns -1
-	return i >= 0 ? i : false;
-}
 
 
 
