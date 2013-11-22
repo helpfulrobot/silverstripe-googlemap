@@ -187,8 +187,6 @@ GMC.prototype.setupMap = function (mapDivName) {
 			marker = null;
 			if(marker) {
 				//update marker details
-				alert(marker);
-				alert("marker");
 			}
 			else {
 				var latLng = new google.maps.LatLng(event.latLng.lat(), event.latLng.lng(), true);
@@ -966,7 +964,6 @@ GMC.prototype.updateLists = function() {
 	this.updateStatus("Map Ready");
 }
 GMC.prototype.createSideBar = function(sideBarArray) {
-	console.debug(sideBarArray);
 	if(this.opts.sideBarId) {
 
 		var el;
@@ -976,7 +973,6 @@ GMC.prototype.createSideBar = function(sideBarArray) {
 
 			var html = '<ul id="' + this.opts.sideBarId + 'list">';
 			for (var j = 0; j < sideBarArray.length; j++) {
-				alert("GG");
 				sideBarElements = sideBarArray[j].split("$$$", 2);
 				i = sideBarElements[1];
 				layerName = this.gmarkers[i].layerId;
