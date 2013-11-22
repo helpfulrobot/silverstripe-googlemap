@@ -875,7 +875,7 @@ GMC.prototype.processXml = function(doc) {
 		this.updateLists();
 		//this.zoomTo(groupInfo.a, groupInfo.o, groupInfo.z);
 		//if(!map.getInfoWindow().isHidden()) {
-		if(!marker.getVisible) {
+		if(marker.getVisible()) {
 			//map.closeInfoWindow();
 			marker.infowindow.close();
 		}
@@ -926,7 +926,7 @@ GMC.prototype.updateLists = function() {
 			this.layerInfo[i].show = 0;
 		}
 		for (var i = 0; i < this.gmarkers.length; i++) {
-			if (!this.gmarkers[i].getVisible()) {
+			if (this.gmarkers[i].getVisible()) {
 				this.layerInfo[this.gmarkers[i].layerId].show = 1;
 				if(!a.inArray(this.gmarkers[i].markerName)) {
 					sideBarArray.push(this.gmarkers[i].markerName + "$$$" + i);
@@ -966,13 +966,17 @@ GMC.prototype.updateLists = function() {
 	this.updateStatus("Map Ready");
 }
 GMC.prototype.createSideBar = function(sideBarArray) {
+	console.debug(sideBarArray);
 	if(this.opts.sideBarId) {
+
 		var el;
 		var layerName = '';
 		var sideBarElements = '';
 		if(el = document.getElementById(this.opts.sideBarId)) {
+
 			var html = '<ul id="' + this.opts.sideBarId + 'list">';
 			for (var j = 0; j < sideBarArray.length; j++) {
+				alert("GG");
 				sideBarElements = sideBarArray[j].split("$$$", 2);
 				i = sideBarElements[1];
 				layerName = this.gmarkers[i].layerId;
