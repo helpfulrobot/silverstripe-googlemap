@@ -156,7 +156,7 @@ class GoogleMapDataResponse extends Controller {
 		$pages = Versioned::get_by_stage("SiteTree", "Live", $where);
 		return $this->makeXMLData($pages, null, $this->title, $this->title);
 	}
-	
+
 	public function showcustomdosmapxml() {
 		$bt = defined('DB::USE_ANSI_SQL') ? "\"" : "`";
 		$array = Array(-1);
@@ -315,6 +315,7 @@ class GoogleMapDataResponse extends Controller {
 		if(Director::is_ajax() || $this->owner->ID) {
 			//$this->dataPointsXML = $data[1];
 			$this->turnoffstaticmaps();
+			$this->response->addHeader("Content-Type", "text/xml; charset=\"utf-8\"");
 			return $this->renderWith("GoogleMapXml");
 		}
 		else {

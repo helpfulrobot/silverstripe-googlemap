@@ -11,7 +11,7 @@ var NZLatitude = '0.0001';//-41.2943
 var NZZoom = 2;//5
 var GMO;
 var addedPoint = 0;
-var markersArray = [];
+
 
 function addLayer(url) {
 	GMO.downloadXml(url);
@@ -738,13 +738,7 @@ GMC.prototype.downloadXml = function(url) {
 		this.updateStatus("Downloading data from server . . . ");
 		this.latestUrl = url;
 		//GDownloadUrl(url, function(doc) { GMO.processXml(doc);} );
-		downloadUrl(
-			url,
-			function(doc) {
-				GMO.processXml(doc);
-			}
-		);
-
+		downloadUrl(url);
 	}
 }
 
@@ -806,7 +800,7 @@ GMC.prototype.processXml = function(doc) {
 			}
 			// Attempt to preload images
 			if (this.opts.preloadImages) {
-				this.preLoadMarkerImages(desc);
+				//this.preLoadMarkerImages(desc);
 			}
 			var coords = placemarks[i].getElementsByTagName("coordinates")[0].childNodes[0].nodeValue;
 			coords=coords.replace(/\s+/g," "); // tidy the whitespace
@@ -875,7 +869,7 @@ GMC.prototype.processXml = function(doc) {
 		//if(!map.getInfoWindow().isHidden()) {
 		if(marker.getVisible()) {
 			//map.closeInfoWindow();
-			marker.infowindow.close();
+			//marker.infowindow.close();
 		}
 		if(pointCount > 1) {
 			this.updateStatus(pointCount + " locations added.");
@@ -1685,53 +1679,21 @@ function createXmlHttpRequest() {
 * @param {Function} callback The function to call once retrieved.
 */
 function downloadUrl(url, callback) {
- var status = -1;
- var request = createXmlHttpRequest();
- if (!request) {
-   return false;
- }
-
- request.onreadystatechange = function() {
-   if (request.readyState == 4) {
-     try {
-       status = request.status;
-     } catch (e) {
-       // Usually indicates request timed out in FF.
-     }
-     if (status == 200) {
-       callback(xmlParse(request.response), request.status);
-       request.onreadystatechange = function() {};
-     }
-   }
- }
- request.open('GET', url, true);
- try {
-   request.send(null);
- } catch (e) {
-   changeStatus(e);
- }
+	var myXML = null
+	jQuery.ajax({
+		type :"GET",
+		url : url,
+		dataType: 'xml',
+		success : function(xml) {
+			GMO.processXml(xml);
+		},
+		error : function(xhRequest, ErrorText, thrownError){
+			alert("could not retrieve map points");
+		}
+	});
+	return myXML;
 };
 
-/**
- * Parses the given XML string and returns the parsed document in a
- * DOM data structure. This function will return an empty DOM node if
- * XML parsing is not supported in this browser.
- * @param {string} str XML string.
- * @return {Element|Document} DOM.
- */
-function xmlParse(str) {
-  if (typeof ActiveXObject != 'undefined' && typeof GetObject != 'undefined') {
-    var doc = new ActiveXObject('Microsoft.XMLDOM');
-    doc.loadXML(str);
-    return doc;
-  }
-
-  if (typeof DOMParser != 'undefined') {
-    return (new DOMParser()).parseFromString(str, 'text/xml');
-  }
-
-  return createElement('div', null);
-}
 
 function xinspect(o,i){
     if(typeof i=='undefined')i='';
