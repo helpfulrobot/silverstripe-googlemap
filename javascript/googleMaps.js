@@ -83,7 +83,7 @@ function GMC(mapDivName, url, opts) {
 	}
 	var latLng = new google.maps.LatLng(this.opts.defaultLatitude, this.opts.defaultLongitude, true);
 	this.zoomTo(latLng, this.opts.defaultZoom);
-	map.clearOverlays();
+	//map.clearOverlays();
 	if(this.opts.mapTypeDefaultZeroToTwo) {
 		var mapType = this.mapTypesArray(this.opts.mapTypeDefaultZeroToTwo-0);
 		//map.setMapTypeId();
